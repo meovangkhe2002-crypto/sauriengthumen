@@ -1,115 +1,121 @@
-// Cấu hình Telegram của bạn (Thay thông tin của bạn vào đây)
-const TELEGRAM_TOKEN = 'TOKEN_CUA_BAN_O_DAY'; 
-const TELEGRAM_CHAT_ID = 'ID_CUA_BAN_O_DAY';
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sầu Riêng Thu Mến</title>
+    <style>
+        /* PHẦN TRANG TRÍ (GIỮ NGUYÊN TỪ CODE TRƯỚC) */
+        :root { --primary-green: #2d5a27; --durian-yellow: #f4d03f; --light-bg: #f9fbf7; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--light-bg); margin: 0; padding: 0; }
+        header { background: var(--primary-green); color: white; padding: 2rem; text-align: center; }
+        .container { max-width: 800px; margin: 20px auto; padding: 0 15px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        h2 { color: var(--primary-green); border-bottom: 2px solid var(--durian-yellow); padding-bottom: 10px; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; }
+        button { background: var(--primary-green); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+        .shipping-info { background: #fff9c4; padding: 10px; border-radius: 6px; margin-top: 10px; }
+        .status-badge { display: inline-block; padding: 8px 15px; background: var(--durian-yellow); border-radius: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
 
-let products = JSON.parse(localStorage.getItem('thuMenProducts')) || [];
-let currentStatus = localStorage.getItem('thuMenStatus') || "Chưa có đơn hàng";
+<header>
+    <h1>Sầu Riêng Thu Mến 🌳</h1>
+</header>
 
-function init() {
-    renderProducts();
-    document.getElementById('displayStatus').innerText = currentStatus;
-}
+<div class="container">
+    <section class="card">
+        <h2>🛒 Đặt Hàng</h2>
+        <select id="customerProductSelect"></select>
+        <input type="text" id="custName" placeholder="Họ và Tên">
+        <input type="tel" id="custPhone" placeholder="Số điện thoại">
+        <input type="datetime-local" id="deliveryTime">
+        <select id="deliveryType" onchange="toggleShipping()">
+            <option value="pickup">Tự đến lấy</option>
+            <option value="ship">Giao hàng (Ship)</option>
+        </select>
+        <div id="shipDetails" style="display: none;">
+            <input type="number" id="distance" placeholder="Số km" oninput="calculateFee()">
+            <div class="shipping-info">Phí ship (1.500đ/km): <span id="shippingFee">0</span> VNĐ</div>
+        </div>
+        <button onclick="placeOrder()">XÁC NHẬN ĐẶT HÀNG</button>
+    </section>
 
-// Hàm gửi thông báo về Telegram
-function sendTelegramNotification(orderData) {
-    const message = `
-🔔 **CÓ ĐƠN HÀNG MỚI - SẦU RIÊNG THU MẾN** 🔔
---------------------------
-👤 Khách hàng: ${orderData.name}
-📞 SĐT: ${orderData.phone}
-📦 Sản phẩm: ${orderData.product}
-⏰ Thời gian: ${orderData.time}
-🚚 Hình thức: ${orderData.type === 'ship' ? 'Giao hàng (' + orderData.distance + 'km)' : 'Tự đến lấy'}
-💰 Phí ship: ${orderData.fee} VNĐ
---------------------------
-🚀 Check web ngay bạn ơi!
-    `;
+    <section class="card">
+        <h2>🚚 Theo Dõi Tiến Độ</h2>
+        <div class="status-badge" id="displayStatus">Chưa có đơn hàng</div>
+    </section>
 
-    const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+    <section class="card" style="border: 2px solid #ddd;">
+        <h2>⚙️ Admin</h2>
+        <input type="text" id="newProdName" placeholder="Tên sầu riêng">
+        <input type="text" id="newProdPrice" placeholder="Giá">
+        <button onclick="adminAddProduct()" style="background: #555;">Thêm Sản Phẩm</button>
+        <div id="adminProductList"></div>
+        <hr>
+        <select id="adminStatusSelect">
+            <option value="Đã nhận đơn">Đã nhận đơn</option>
+            <option value="Đang chuẩn bị">Đang chuẩn bị</option>
+            <option value="Đang giao hàng">Đang giao hàng</option>
+        </select>
+        <button onclick="adminUpdateStatus()" style="background: #555; margin-top: 10px;">Cập Nhật Tiến Độ</button>
+    </section>
+</div>
 
-    fetch(url)
-        .then(response => {
-            if(response.ok) console.log("Đã báo về Telegram!");
-        })
-        .catch(err => console.error("Lỗi gửi tin nhắn:", err));
-}
+<script>
+    // PHẦN BỘ NÃO (CODE MÀ BẠN ĐANG THẤY TRONG HÌNH)
+    const TELEGRAM_TOKEN = 'TOKEN_CỦA_BẠN'; 
+    const TELEGRAM_CHAT_ID = 'ID_CỦA_BẠN';
+    
+    let products = JSON.parse(localStorage.getItem('thuMenProducts')) || [];
+    let currentStatus = localStorage.getItem('thuMenStatus') || "Chưa có đơn hàng";
 
-// Hàm phát tiếng "Ting Ting" khi có đơn
-function playNotificationSound() {
-    const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
-    audio.play();
-}
+    function init() { renderProducts(); document.getElementById('displayStatus').innerText = currentStatus; }
 
-// Xử lý khi khách bấm Đặt Hàng
-function placeOrder() {
-    const name = document.getElementById('custName').value;
-    const phone = document.getElementById('custPhone').value;
-    const product = document.getElementById('customerProductSelect').value;
-    const time = document.getElementById('deliveryTime').value;
-    const type = document.getElementById('deliveryType').value;
-    const distance = document.getElementById('distance').value;
-    const fee = document.getElementById('shippingFee').innerText;
-
-    if(!name || !phone || !time) {
-        alert("Vui lòng điền đầy đủ thông tin để Thu Mến giao hàng nhé!");
-        return;
+    function placeOrder() {
+        const name = document.getElementById('custName').value;
+        const phone = document.getElementById('custPhone').value;
+        if(!name || !phone) { alert("Nhập đủ thông tin nhé!"); return; }
+        
+        const message = `🔔 ĐƠN MỚI: ${name} - ${phone} - ${document.getElementById('customerProductSelect').value}`;
+        fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodeURIComponent(message)}`);
+        
+        alert("Đã gửi đơn!");
+        adminUpdateStatus("Khách vừa đặt đơn");
     }
 
-    // 1. Tạo đối tượng đơn hàng
-    const orderData = { name, phone, product, time, type, distance, fee };
+    function renderProducts() {
+        const cSelect = document.getElementById('customerProductSelect');
+        const aList = document.getElementById('adminProductList');
+        cSelect.innerHTML = ''; aList.innerHTML = '';
+        products.forEach((p, i) => {
+            cSelect.innerHTML += `<option>${p.name} - ${p.price}</option>`;
+            aList.innerHTML += `<div>${p.name} <button onclick="products.splice(${i},1);renderProducts()">Xóa</button></div>`;
+        });
+        localStorage.setItem('thuMenProducts', JSON.stringify(products));
+    }
 
-    // 2. Gửi thông báo về Telegram cho chủ shop
-    sendTelegramNotification(orderData);
+    function adminAddProduct() {
+        const name = document.getElementById('newProdName').value;
+        const price = document.getElementById('newProdPrice').value;
+        if(name && price) { products.push({name, price}); renderProducts(); }
+    }
 
-    // 3. Phát âm thanh thông báo trên máy tính (nếu đang mở web)
-    playNotificationSound();
+    function toggleShipping() {
+        document.getElementById('shipDetails').style.display = (document.getElementById('deliveryType').value === 'ship') ? 'block' : 'none';
+    }
 
-    // 4. Thông báo cho khách
-    alert("Cảm ơn " + name + "! Đơn hàng đã được gửi tới hệ thống của Thu Mến.");
-    
-    // Cập nhật trạng thái hiển thị
-    adminUpdateStatus("Khách vừa đặt đơn mới");
-}
+    function calculateFee() {
+        document.getElementById('shippingFee').innerText = (document.getElementById('distance').value * 1500).toLocaleString();
+    }
 
-// --- GIỮ NGUYÊN CÁC HÀM CŨ (renderProducts, adminAddProduct, toggleShipping...) ---
-function renderProducts() {
-    const customerSelect = document.getElementById('customerProductSelect');
-    const adminList = document.getElementById('adminProductList');
-    customerSelect.innerHTML = '';
-    adminList.innerHTML = '';
-    products.forEach((p, index) => {
-        let option = document.createElement('option');
-        option.value = p.name;
-        option.text = `${p.name} - ${p.price}`;
-        customerSelect.appendChild(option);
-        adminList.innerHTML += `<div class="product-item"><span>${p.name} (${p.price})</span><button class="delete-btn" onclick="adminDeleteProduct(${index})">Xóa</button></div>`;
-    });
-    localStorage.setItem('thuMenProducts', JSON.stringify(products));
-}
-
-function adminAddProduct() {
-    const name = document.getElementById('newProdName').value;
-    const price = document.getElementById('newProdPrice').value;
-    if(name && price) { products.push({name, price}); renderProducts(); }
-}
-
-function adminDeleteProduct(index) { products.splice(index, 1); renderProducts(); }
-
-function toggleShipping() {
-    const type = document.getElementById('deliveryType').value;
-    document.getElementById('shipDetails').style.display = (type === 'ship') ? 'block' : 'none';
-}
-
-function calculateFee() {
-    const dist = document.getElementById('distance').value;
-    document.getElementById('shippingFee').innerText = (dist * 1500).toLocaleString();
-}
-
-function adminUpdateStatus(customStatus) {
-    const status = customStatus || document.getElementById('adminStatusSelect').value;
-    currentStatus = status;
-    localStorage.setItem('thuMenStatus', status);
-    document.getElementById('displayStatus').innerText = status;
-}
-
-init();
+    function adminUpdateStatus() {
+        currentStatus = document.getElementById('adminStatusSelect').value;
+        localStorage.setItem('thuMenStatus', currentStatus);
+        document.getElementById('displayStatus').innerText = currentStatus;
+    }
+    init();
+</script>
+</body>
+</html>
