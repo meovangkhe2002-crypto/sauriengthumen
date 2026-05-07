@@ -1,0 +1,115 @@
+// Cấu hình Telegram của bạn (Thay thông tin của bạn vào đây)
+const TELEGRAM_TOKEN = 'TOKEN_CUA_BAN_O_DAY'; 
+const TELEGRAM_CHAT_ID = 'ID_CUA_BAN_O_DAY';
+
+let products = JSON.parse(localStorage.getItem('thuMenProducts')) || [];
+let currentStatus = localStorage.getItem('thuMenStatus') || "Chưa có đơn hàng";
+
+function init() {
+    renderProducts();
+    document.getElementById('displayStatus').innerText = currentStatus;
+}
+
+// Hàm gửi thông báo về Telegram
+function sendTelegramNotification(orderData) {
+    const message = `
+🔔 **CÓ ĐƠN HÀNG MỚI - SẦU RIÊNG THU MẾN** 🔔
+--------------------------
+👤 Khách hàng: ${orderData.name}
+📞 SĐT: ${orderData.phone}
+📦 Sản phẩm: ${orderData.product}
+⏰ Thời gian: ${orderData.time}
+🚚 Hình thức: ${orderData.type === 'ship' ? 'Giao hàng (' + orderData.distance + 'km)' : 'Tự đến lấy'}
+💰 Phí ship: ${orderData.fee} VNĐ
+--------------------------
+🚀 Check web ngay bạn ơi!
+    `;
+
+    const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+
+    fetch(url)
+        .then(response => {
+            if(response.ok) console.log("Đã báo về Telegram!");
+        })
+        .catch(err => console.error("Lỗi gửi tin nhắn:", err));
+}
+
+// Hàm phát tiếng "Ting Ting" khi có đơn
+function playNotificationSound() {
+    const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
+    audio.play();
+}
+
+// Xử lý khi khách bấm Đặt Hàng
+function placeOrder() {
+    const name = document.getElementById('custName').value;
+    const phone = document.getElementById('custPhone').value;
+    const product = document.getElementById('customerProductSelect').value;
+    const time = document.getElementById('deliveryTime').value;
+    const type = document.getElementById('deliveryType').value;
+    const distance = document.getElementById('distance').value;
+    const fee = document.getElementById('shippingFee').innerText;
+
+    if(!name || !phone || !time) {
+        alert("Vui lòng điền đầy đủ thông tin để Thu Mến giao hàng nhé!");
+        return;
+    }
+
+    // 1. Tạo đối tượng đơn hàng
+    const orderData = { name, phone, product, time, type, distance, fee };
+
+    // 2. Gửi thông báo về Telegram cho chủ shop
+    sendTelegramNotification(orderData);
+
+    // 3. Phát âm thanh thông báo trên máy tính (nếu đang mở web)
+    playNotificationSound();
+
+    // 4. Thông báo cho khách
+    alert("Cảm ơn " + name + "! Đơn hàng đã được gửi tới hệ thống của Thu Mến.");
+    
+    // Cập nhật trạng thái hiển thị
+    adminUpdateStatus("Khách vừa đặt đơn mới");
+}
+
+// --- GIỮ NGUYÊN CÁC HÀM CŨ (renderProducts, adminAddProduct, toggleShipping...) ---
+function renderProducts() {
+    const customerSelect = document.getElementById('customerProductSelect');
+    const adminList = document.getElementById('adminProductList');
+    customerSelect.innerHTML = '';
+    adminList.innerHTML = '';
+    products.forEach((p, index) => {
+        let option = document.createElement('option');
+        option.value = p.name;
+        option.text = `${p.name} - ${p.price}`;
+        customerSelect.appendChild(option);
+        adminList.innerHTML += `<div class="product-item"><span>${p.name} (${p.price})</span><button class="delete-btn" onclick="adminDeleteProduct(${index})">Xóa</button></div>`;
+    });
+    localStorage.setItem('thuMenProducts', JSON.stringify(products));
+}
+
+function adminAddProduct() {
+    const name = document.getElementById('newProdName').value;
+    const price = document.getElementById('newProdPrice').value;
+    if(name && price) { products.push({name, price}); renderProducts(); }
+}
+
+function adminDeleteProduct(index) { products.splice(index, 1); renderProducts(); }
+
+function toggleShipping() {
+    const type = document.getElementById('deliveryType').value;
+    document.getElementById('shipDetails').style.display = (type === 'ship') ? 'block' : 'none';
+}
+
+function calculateFee() {
+    const dist = document.getElementById('distance').value;
+    document.getElementById('shippingFee').innerText = (dist * 1500).toLocaleString();
+}
+
+function adminUpdateStatus(customStatus) {
+    const status = customStatus || document.getElementById('adminStatusSelect').value;
+    currentStatus = status;
+    localStorage.setItem('thuMenStatus', status);
+    document.getElementById('displayStatus').innerText = status;
+}
+
+init();
